@@ -16,6 +16,7 @@ local filetree = ide.filetree
 local iscaseinsensitive = wx.wxFileName("A"):SameAs(wx.wxFileName("a"))
 local pathsep = GetPathSeparator()
 local q = EscapeMagic
+local unpack = table.unpack or unpack
 
 -- generic tree
 -- ------------
@@ -579,12 +580,24 @@ function FileTreeGetProjects()
 end
 
 local function getProjectLabels()
-  local labels = {}
+  local projects = {}
+  local interpreters = {}
   for i, proj in ipairs(FileTreeGetProjects()) do
+    local parts = wx.wxFileName(proj..pathsep):GetDirs()
+    local name = table.remove(parts, #parts) or v
     local config = ide.session.projects[proj]
     local intfname = config and config[2] and config[2].interpreter or ide.interpreter:GetFileName()
-    local interpreter = intfname and ide.interpreters[intfname]
-    table.insert(labels, proj..(interpreter and (' ('..interpreter:GetName()..')') or ''))
+    local interpreter = ide.interpreters[intfname]
+    interpreters[interpreter or '?'] = true
+    table.insert(projects, {proj, name, interpreter and interpreter:GetName()})
+  end
+  local oneinterpreter = not next(interpreters, next(interpreters))
+  local labels = {}
+  for i, proj in ipairs(projects) do
+    local full, short, interpreter = unpack(proj)
+    table.insert(labels, oneinterpreter
+      and ("%s [%s]"):format(short, full)
+      or ("%s (%s) [%s]"):format(short, interpreter, full))
   end
   return labels
 end
